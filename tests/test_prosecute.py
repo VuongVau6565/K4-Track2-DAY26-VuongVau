@@ -21,9 +21,9 @@ Covers, in order:
   7. The committed fixture set itself: >= 24 fixtures, all 17 classes covered
      with >= 2 traces each, at least one clean (no-defect) fixture, exactly one
      near_miss per class, deterministic on-disk build.
-  8. The starter `prosecute()` end to end against the real fixture set: zero
-     errors, zero timeouts, zero false claims, perfect precision, low overall
-     recall, and 100% recall on the one class it actually implements.
+  8. The complete `prosecute()` end to end against the real fixture set: zero
+     errors, timeouts, false claims, or rejected claims, and full recall across
+     all 17 classes and their near-miss traces.
 
 pytest only (permitted in tests/ per this workspace's hard rules). No network, no
 unseeded randomness.
@@ -300,7 +300,7 @@ def test_naive_prosecutor_is_unproven_on_the_near_miss_fixture(labelled_fixtures
     assert report["false"] == 0, "the class genuinely IS present -- this must not be penalised as false"
 
 
-def test_competent_starter_is_verified_on_both_enforcement_failure_fixtures(labelled_fixtures):
+def test_enforcement_detector_is_verified_on_both_fixtures(labelled_fixtures):
     positive = _by_id(labelled_fixtures, "enforcement_failure__positive")
     near_miss = _by_id(labelled_fixtures, "enforcement_failure__near_miss")
     report = score_prosecutor(prosecute, [positive, near_miss])
@@ -478,7 +478,7 @@ def test_committed_fixture_files_are_current(labelled_fixtures):
 
 
 # ---------------------------------------------------------------------------
-# 7. The starter prosecute() end to end, and its performance.
+# 7. The prosecutor end to end, and its performance.
 # ---------------------------------------------------------------------------
 
 
@@ -542,23 +542,17 @@ def test_prosecutor_end_to_end_against_the_full_fixture_set(labelled_fixtures):
 
     # precision perfect: it never guesses wrong when it does file
     assert report["precision"] == 1.0
-    # The shipped baseline implements enforcement_failure. Student solutions
-    # are expected to add detectors, so recall may legitimately rise all the
-    # way to 1.0; pin the floor, not the starter's intentionally low ceiling.
-    assert report["recall"] >= 1 / len(CLASSES)
+    assert report["recall"] == 1.0
     assert report["false_claim_rate"] == 0.0
 
-    assert report["per_class"]["enforcement_failure"]["recall"] == 1.0
-    assert report["per_class"]["enforcement_failure"]["present"] == 2
-    assert report["per_class"]["enforcement_failure"]["verified"] == 2
-    # Every class remains represented, whether its hook is still a no-op or a
-    # student has implemented it.
-    for cls in CLASSES - {"enforcement_failure"}:
+    for cls in CLASSES:
         assert report["per_class"][cls]["present"] >= 2
+        assert report["per_class"][cls]["recall"] == 1.0
+        assert report["per_class"][cls]["verified"] == report["per_class"][cls]["present"]
 
 
-def test_starter_files_nothing_on_clean_fixtures(labelled_fixtures):
+def test_prosecutor_files_nothing_on_clean_fixtures(labelled_fixtures):
     clean = [fx for fx in labelled_fixtures if not fx["label"]["present_classes"]]
     for fx in clean:
         result = prosecute(fx["trace"], fx["answer"], fx["card"])
-        assert result["claims"] == [], f"{fx['fixture_id']} is clean but the starter filed {result['claims']}"
+        assert result["claims"] == [], f"{fx['fixture_id']} is clean but the prosecutor filed {result['claims']}"
